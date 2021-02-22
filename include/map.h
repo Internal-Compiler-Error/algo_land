@@ -1,12 +1,12 @@
-#ifndef ALGO_LAND_BINARY_SEARCH_TREE_H
-#define ALGO_LAND_BINARY_SEARCH_TREE_H
+#ifndef ALGO_LAND_MAP_H
+#define ALGO_LAND_MAP_H
 
 #include <cstddef>
 #include <memory>
 #include <stdexcept>
 
 template <typename K, typename V>
-class binary_search_tree {
+class map {
    private:
     /**
      * Internal node type definition
@@ -31,7 +31,7 @@ class binary_search_tree {
    public:
     using node_type = typename node_t<K, V>::node_type;
 
-    binary_search_tree() noexcept : root{std::make_unique<node_type>()} {}
+    map() noexcept : root{std::make_unique<node_type>()} {}
 
     [[nodiscard]] constexpr V& at(K const& key) const {
         auto* value = search_through(root, key);
@@ -94,4 +94,4 @@ class binary_search_tree {
     std::unique_ptr<node_type> root;
 };
 
-#endif  // ALGO_LAND_BINARY_SEARCH_TREE_H
+#endif  // ALGO_LAND_MAP_H
