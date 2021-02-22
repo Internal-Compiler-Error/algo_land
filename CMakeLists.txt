@@ -22,7 +22,7 @@ set(common_features
 add_library(algo_and_data
         include/sort.h
         include/priority_queue.h
-        include/binary_search_tree.h include/utils.h)
+        include/binary_search_tree.h include/utils.h include/search.h)
 set_target_properties(algo_and_data PROPERTIES LINKER_LANGUAGE CXX)
 target_compile_options(algo_and_data PRIVATE
         ${common_warnings} ${common_features})

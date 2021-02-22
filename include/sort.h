@@ -4,7 +4,9 @@
 
 #ifndef ALGO_LAND_SORT_H
 #define ALGO_LAND_SORT_H
+#include <priority_queue.h>
 
+#include <cassert>
 template <typename T>
 void selection_sort(std::vector<T>& vec) noexcept {
     for (auto iterator = vec.begin(); iterator != vec.end(); ++iterator) {
@@ -105,6 +107,28 @@ template <typename T>
 void quick_sort(std::vector<T>& vec) noexcept {
     quick_sort(vec.begin(), vec.end());
     assert(std::is_sorted(vec.begin(), vec.end()));
+}
+
+template <typename Iter>
+void heap_sort(Iter begin, Iter end) {
+    ::priority_queue<std::remove_reference_t<decltype(*std::declval<Iter>())>, std::greater<>> heap;
+
+    for (Iter it = begin; it != end; ++it) {
+        heap.insert(std::move(*it));
+    }
+    assert(heap.validate());
+
+    for (Iter it = begin; it != end; ++it) {
+        auto ret = heap.pop();
+        heap.print();
+        std::cout << "Just popped out: " << ret << "\n\n";
+        *it = ret;
+    }
+
+    for (Iter it = begin; it != end; ++it) {
+        std::cout << *it << '\n';
+    }
+    assert(std::is_sorted(begin, end));
 }
 
 #endif  // ALGO_LAND_SORT_H
