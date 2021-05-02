@@ -11,7 +11,7 @@ namespace algo {
 template <typename K, typename V>
 requires std::totally_ordered<K>
 class map {
-   private:
+private:
     /**
      * Internal node type definition
      * @tparam T Key type
@@ -37,7 +37,7 @@ class map {
         constexpr auto& key_val() noexcept { return key_val_; }
     };
 
-   public:
+public:
     using node_type = typename node_t<K, V>::node_type;
     using key_type = typename node_type::pair_type::first_type;
     using value_type = typename node_type::pair_type::second_type;
@@ -98,7 +98,7 @@ class map {
     constexpr node_type const& ceiling(key_type const& key) const { return static_cast<node_type const&>(*ceiling_impl(root.get(), key)); }
     constexpr node_type& ceiling(key_type const& key) { return *ceiling_impl(root.get(), key); }
 
-   private:
+private:
     template <typename T, typename U>
     [[nodiscard]] static constexpr std::size_t size(node_t<T, U>* root) noexcept {
         if (root) {

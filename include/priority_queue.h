@@ -15,7 +15,7 @@ namespace algo {
 
 template <typename T, typename Compare = std::less<>>
 class priority_queue {
-   public:
+public:
     using value_type = T;
 
     template <typename U>
@@ -66,7 +66,7 @@ class priority_queue {
 
     [[nodiscard]] bool validate() const { return std::is_heap(std::begin(arr_), std::begin(arr_), comp_); }
 
-   private:
+private:
     [[nodiscard]] constexpr std::size_t left_child(std::size_t pos) const noexcept { return 2 * pos + 1; }
     [[nodiscard]] constexpr std::size_t right_child(std::size_t pos) const noexcept { return 2 * pos + 2; }
     [[nodiscard]] constexpr std::size_t parent(std::size_t pos) const noexcept { return (pos - 1) / 2; }
