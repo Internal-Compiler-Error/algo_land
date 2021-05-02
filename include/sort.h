@@ -24,6 +24,7 @@ void selection_sort(std::vector<T>& vec) noexcept {
 template <typename T>
 void insertion_sort(std::vector<T>& vec) noexcept {
     for (auto front_iter = std::next(vec.begin()); front_iter != vec.end(); ++front_iter) {
+        // goes from the end of sorted bit and
         for (auto middle_iter = front_iter; middle_iter != vec.begin() && *middle_iter < *std::prev(middle_iter); --middle_iter) {
             std::swap(middle_iter, std::prev(middle_iter));
         }
@@ -38,13 +39,17 @@ void bubble_sort(std::vector<T>& vec) {
             if (*iterator > *std::next(iterator)) {
                 std::iter_swap(iterator, std::next(iterator));
             }
+            for (int i : vec) {
+                std::cout << i << ' ';
+            }
         }
+        std::cout << '\n';
     }
     assert(std::is_sorted(vec.begin(), vec.end()));
 }
 
 /**
- * Performs a quicksort partition by picking the element in the middle and moving all those that are smaller to the left of the element and all those that are
+ * Performs a quicksort partition by picking the element in the middle and moving all those that are smaller to the left_ of the element and all those that are
  * bigger to the right of the pivot. The pivot will be the in the correct final position of the sorted range
  * @tparam BiDirectionalIterator must satisfy the requirement of LegacyBidirectionalIterator
  * @param begin [begin, end) of a range

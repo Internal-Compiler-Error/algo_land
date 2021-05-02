@@ -78,7 +78,7 @@ class priority_queue {
     }
 
     void sink(std::size_t pos) noexcept {
-        // stop when left child is the last element
+        // stop when left_ child is the last element
         while (left_child(pos) < arr_.size()) {
             std::size_t const next_child = [pos, this]() {
                 auto const left_child_pos = left_child(pos);
