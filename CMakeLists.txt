@@ -28,11 +28,6 @@ target_compile_options(algo_and_data PRIVATE
         ${common_warnings} ${common_features})
 target_include_directories(algo_and_data PUBLIC include/)
 
-add_executable(algo_land main.cpp)
-target_compile_options(algo_land PRIVATE
-        ${common_warnings} ${common_features})
-target_link_libraries(algo_land PRIVATE algo_and_data)
-
 enable_testing()
 find_package(Catch2 CONFIG REQUIRED)
 include(Catch)
