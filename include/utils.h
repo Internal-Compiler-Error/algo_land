@@ -1,5 +1,7 @@
 #ifndef ALGO_LAND_UTILS_H
 #define ALGO_LAND_UTILS_H
+
+namespace algo {
 template <typename T>
 void fill_random(std::vector<T>& vec) noexcept {
     std::random_device rnd_device;
@@ -24,5 +26,5 @@ template <typename T>
 bool is_even(T t) {
     return t % 2 == 0;
 }
-
+}  // namespace algo
 #endif  // ALGO_LAND_UTILS_H

@@ -4,6 +4,8 @@
 #include <iterator>
 #include <numeric>
 
+namespace algo {
+
 template <typename Iter, typename T>
 Iter binary_search(Iter begin, Iter end, T const& value) requires(std::totally_ordered_with<typename std::iterator_traits<Iter>::value_type, T>,
                                                                   std::random_access_iterator<Iter>) {
@@ -22,5 +24,5 @@ Iter binary_search(Iter begin, Iter end, T const& value) requires(std::totally_o
         }
     }
 }
-
+}  // namespace algo
 #endif  // ALGO_LAND_SEARCH_H

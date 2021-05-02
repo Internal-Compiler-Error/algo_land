@@ -11,13 +11,16 @@
 #include <utility>
 #include <vector>
 
+namespace algo {
+
 template <typename T, typename Compare = std::less<>>
 class priority_queue {
    public:
     using value_type = T;
 
     template <typename U>
-    requires std::convertible_to<U, T> void insert(U&& u) noexcept {
+    requires std::convertible_to<U, T>
+    void insert(U&& u) noexcept {
         using std::is_heap, std::begin, std::end, std::forward;
 
         arr_.push_back(forward<U>(u));
@@ -106,5 +109,5 @@ class priority_queue {
     std::vector<T> arr_;
     Compare comp_;
 };
-
+}  // namespace algo
 #endif  // ALGO_LAND_PRIORITY_QUEUE_H

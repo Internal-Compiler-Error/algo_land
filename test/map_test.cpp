@@ -7,10 +7,10 @@
 #include <limits>
 #include <random>
 
-TEST_CASE("map can construct as <int, int> pair") { ::map<int, int> m; }
+TEST_CASE("map can construct as <int, int> pair") { algo::map<int, int> m; }
 
 TEST_CASE("map can insert") {
-    ::map<int, int> m;
+    algo::map<int, int> m;
 
     std::random_device seeder;
     std::mt19937_64 rand_engine{seeder()};

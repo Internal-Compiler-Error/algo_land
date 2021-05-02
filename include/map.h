@@ -6,6 +6,7 @@
 #include <memory>
 #include <stdexcept>
 #include <utility>
+namespace algo {
 
 template <typename K, typename V>
 requires std::totally_ordered<K>
@@ -149,5 +150,5 @@ class map {
 
     std::unique_ptr<node_type> root = nullptr;
 };
-
+}  // namespace algo
 #endif  // ALGO_LAND_MAP_H

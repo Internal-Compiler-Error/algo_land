@@ -7,6 +7,8 @@
 #include <priority_queue.h>
 
 #include <cassert>
+
+namespace algo {
 template <typename T>
 void selection_sort(std::vector<T>& vec) noexcept {
     for (auto iterator = vec.begin(); iterator != vec.end(); ++iterator) {
@@ -135,5 +137,5 @@ void heap_sort(Iter begin, Iter end) {
     }
     assert(std::is_sorted(begin, end));
 }
-
+}  // namespace algo
 #endif  // ALGO_LAND_SORT_H
