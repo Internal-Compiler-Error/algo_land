@@ -30,11 +30,13 @@ private:
             return lhs.key <=> rhs.key;
         }
 
+        constexpr auto const& key() const noexcept { return key_val_.first; }
         constexpr auto& key() noexcept { return key_val_.first; }
 
         constexpr auto& value() noexcept { return key_val_.second; }
 
         constexpr auto& key_val() noexcept { return key_val_; }
+        constexpr auto const& key_val() const noexcept { return key_val_; }
     };
 
 public:
@@ -54,11 +56,11 @@ public:
     }
 
     [[nodiscard]] constexpr value_type& at(K const& key) {
-        auto* target = find(root, key);
+        auto* target = find(root.get(), key);
         if (!target) {
             throw std::out_of_range{"such key does not exist!"};
         }
-        return target->key_val_;
+        return target->value();
     }
 
     void insert(std::pair<K, V>&& key_val) {
@@ -92,11 +94,11 @@ public:
     constexpr node_type const& min() const noexcept { return static_cast<key_type const&>(*min_impl()); }
     constexpr node_type& min() noexcept { return *min_impl(); }
 
-    constexpr node_type const& floor(key_type const& key) const { return static_cast<node_type const&>(*floor_impl(root.get(), key)); }
-    constexpr node_type& floor(key_type const& key) { return *floor_impl(root.get(), key); }
+    constexpr node_type const& lower_bound(key_type const& key) const { return static_cast<node_type const&>(*floor_impl(root.get(), key)); }
+    constexpr node_type& lower_bound(key_type const& key) { return *floor_impl(root.get(), key); }
 
-    constexpr node_type const& ceiling(key_type const& key) const { return static_cast<node_type const&>(*ceiling_impl(root.get(), key)); }
-    constexpr node_type& ceiling(key_type const& key) { return *ceiling_impl(root.get(), key); }
+    constexpr node_type const& upper_bound(key_type const& key) const { return static_cast<node_type const&>(*ceiling_impl(root.get(), key)); }
+    constexpr node_type& upper_bound(key_type const& key) { return *ceiling_impl(root.get(), key); }
 
 private:
     template <typename T, typename U>
@@ -112,30 +114,27 @@ private:
         while (node_iter) {
             if (node_iter->key() == key) {
                 return node_iter;
-            }
-
-            if (key < node_iter->key()) {
+            } else if (key < node_iter->key()) {
                 node_iter = node_iter->left_.get();
-            }
-            if (key > node_iter->key()) {
+            } else if (key > node_iter->key()) {
                 node_iter = node_iter->right_.get();
             }
         }
         return node_iter;
     }
 
-    constexpr node_type* min_impl() noexcept {
+    constexpr node_type* min_impl() const noexcept {
         auto* iter = root.get();
         if (iter) {
-            while (iter) {
+            while (iter->left_.get()) {
                 iter = iter->left_.get();
             }
-            return iter->get();
+            return iter;
         }
         return nullptr;
     }
 
-    constexpr node_type* floor_impl(node_type const* node, key_type const& key) noexcept {
+    constexpr node_type* floor_impl(node_type* node, key_type const& key) const noexcept {
         if (!node) {
             return nullptr;
         }
@@ -159,7 +158,7 @@ private:
         }
     }
 
-    consteval node_type* ceiling_impl(node_type const* node, key_type const& key) {
+    constexpr node_type* ceiling_impl(node_type* node, key_type const& key) const {
         if (!node) {
             return nullptr;
         }
@@ -179,6 +178,14 @@ private:
                 return node;
             }
         }
+    }
+
+    constexpr void delete_min() noexcept {
+        auto* iter = root.get();
+        while (iter->left_) {
+            iter = iter->left_.get();
+        }
+        iter->left_.release();
     }
 
     std::unique_ptr<node_type> root = nullptr;
