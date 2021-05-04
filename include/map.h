@@ -6,7 +6,13 @@
 #include <memory>
 #include <stdexcept>
 #include <utility>
+
+#ifndef NDEBUG
+#include <iostream>
+#endif
 namespace algo {
+
+namespace details {}
 
 template <typename K, typename V>
 requires std::totally_ordered<K>
@@ -88,7 +94,7 @@ public:
         *iter = std::make_unique<node_type>(
             node_type{.left_ = nullptr, .right_ = nullptr, .parent_ = parent, .key_val_ = std::forward<std::pair<K, V>&&>(key_val)});
     }
-    
+
     void remove(key_type const& key) {
         auto* node = find(root.get(), key);
 
@@ -97,6 +103,7 @@ public:
         }
 
         if (!node->left() && !node->right()) {
+            // when the node has no child, it must be from the bottom
             auto* parent = node->parent();
             if (parent) {
                 // normal case when parent is just another node
@@ -124,9 +131,8 @@ public:
                 }
             } else {
                 // special case when node is root
-
-                right_sub_tree->parent() = root.get();
                 root = std::move(right_sub_tree);
+                root->parent() = nullptr;
             }
             --ssize_;
             return;
@@ -144,8 +150,8 @@ public:
                 }
             } else {
                 // special case when node is root
-                left_sub_tree->parent() = root.get();
                 root = std::move(left_sub_tree);
+                root->parent() = nullptr;
             }
             --ssize_;
             return;
@@ -164,12 +170,6 @@ public:
         auto* node_parent = node->parent();
 
         if (node_parent) {
-            if (node_parent->left() == node) {
-                node_parent->left_ = std::move(successor);
-            } else {
-                node_parent->right_ = std::move(successor);
-            }
-
             successor->parent() = node_parent;
             successor->left_ = std::move(left);
             if (successor->left_) {
@@ -180,7 +180,15 @@ public:
             if (successor->right_) {
                 successor->right()->parent() = successor.get();
             }
+
+            if (node_parent->left() == node) {
+                node_parent->left_ = std::move(successor);
+            } else {
+                node_parent->right_ = std::move(successor);
+            }
+
         } else {
+            // special case when node is root
             successor->left_ = std::move(left);
 
             if (successor->left_) {
@@ -210,6 +218,27 @@ public:
 
     constexpr node_type const& upper_bound(key_type const& key) const { return static_cast<node_type const&>(*ceiling_impl(root.get(), key)); }
     constexpr node_type& upper_bound(key_type const& key) { return *ceiling_impl(root.get(), key); }
+
+#ifndef NDEBUG
+    void printInorder(std::string_view preamble) const noexcept {
+        std::cout << "\n\n**********************\n" << std::flush;
+        std::cout << preamble << std::flush;
+        printInorder(root.get());
+        std::cout << "**********************\n" << std::flush;
+    }
+
+    void printInorder(node_type* node) const noexcept {
+        if (!node) return;
+        /* first recur on left child */
+        printInorder(node->left());
+
+        /* then print the data of node */
+        std::cout << "key = " << node->key() << " value = " << node->value() << '\n' << std::flush;
+
+        /* now recur on right child */
+        printInorder(node->right());
+    }
+#endif
 
 private:
     template <typename T, typename U>

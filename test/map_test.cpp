@@ -7,6 +7,7 @@
 #include <iostream>
 #include <limits>
 #include <random>
+#include <unordered_set>
 
 TEST_CASE("map can construct as <int, int> pair", "[construct]") { algo::map<int, int> m; }
 
@@ -93,11 +94,27 @@ TEST_CASE("map::upper_bound returns the ceiling of key", "[upper_bound]") {
     REQUIRE(map.upper_bound(0).key() == 1);
 }
 
-TEST_CASE("map::delete_min deletes the minimum element", "[delete_min]") {
+TEST_CASE("map::remove removes the node with the matching key", "[remove]") {
     algo::map<int, int> map;
 
-    map.insert({1, 2});
-    map.insert({3, 4});
-    map.insert({-1, 55});
-    map.insert({99, 42});
+    std::vector<std::pair<int, int>> vec;
+    std::unordered_set<int> s;
+    std::random_device seeder;
+    std::mt19937_64 rand_engine{seeder()};
+    std::uniform_int_distribution<int> distribution{std::numeric_limits<int>::min(), std::numeric_limits<int>::max()};
+
+    for (std::size_t i = 0; i != 20000; ++i) {
+        auto [key, value] = std::pair<int, int>{distribution(rand_engine), distribution(rand_engine)};
+        if (!s.contains(key)) {
+            s.insert(key);
+            vec.emplace_back(key, value);
+            map.insert({vec.back().first, vec.back().second});
+        }
+    }
+
+    std::shuffle(vec.begin(), vec.end(), rand_engine);
+
+    for (auto& i : vec) {
+        map.remove(i.first);
+    }
 }
