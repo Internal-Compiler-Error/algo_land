@@ -22,27 +22,30 @@ private:
         using node_type = node_t<T, U>;
         using pair_type = std::pair<T, U>;
 
-        pair_type key_val_;
         std::unique_ptr<node_type> left_;
         std::unique_ptr<node_type> right_;
+        node_type* parent_;
+        pair_type key_val_;
 
-        friend constexpr auto operator<=>(node_t<T, U> const& lhs, node_t<T, U> const& rhs) noexcept(noexcept(lhs.key <=> rhs.key)) {
+        [[nodiscard]] friend constexpr auto operator<=>(node_t<T, U> const& lhs, node_t<T, U> const& rhs) noexcept(noexcept(lhs.key <=> rhs.key)) {
             return lhs.key <=> rhs.key;
         }
+        [[nodiscard]] constexpr auto& key() const noexcept { return key_val_.first; }
+        [[nodiscard]] constexpr auto& value() noexcept { return key_val_.second; }
 
-        constexpr auto const& key() const noexcept { return key_val_.first; }
-        constexpr auto& key() noexcept { return key_val_.first; }
-
-        constexpr auto& value() noexcept { return key_val_.second; }
-
-        constexpr auto& key_val() noexcept { return key_val_; }
-        constexpr auto const& key_val() const noexcept { return key_val_; }
+        [[nodiscard]] constexpr node_type* left() const noexcept { return left_.get(); }
+        [[nodiscard]] constexpr node_type* right() const noexcept { return right_.get(); }
+        [[nodiscard]] constexpr node_type*& parent() noexcept { return parent_; }
+        [[nodiscard]] constexpr auto& key_val() noexcept { return key_val_; }
+        [[nodiscard]] constexpr auto const& key_val() const noexcept { return key_val_; }
     };
 
 public:
     using node_type = typename node_t<K, V>::node_type;
     using key_type = typename node_type::pair_type::first_type;
     using value_type = typename node_type::pair_type::second_type;
+    using ssize_type = long long;  // this is a deliberate decision to to signed integers for size, sizes are never negative and hence should be unsigned is a
+                                   // bad argument
 
     map() noexcept = default;
 
@@ -64,35 +67,143 @@ public:
     }
 
     void insert(std::pair<K, V>&& key_val) {
-        // special case for first insert
-        if (!root) {
-            root = std::make_unique<node_type>(node_type{.key_val_ = std::forward<std::pair<K, V>&&>(key_val), .left_ = nullptr, .right_ = nullptr});
-            return;
-        } else {
-            // we walk through every unique pointer until it points to null, meaning we have reached a leaf node
-            // the `iter` is is a pointer to a std::unique_ptr, hence double de-referencing is required to get the underlying element
-            auto* iter = &root;
-            while (*iter) {
-                auto comp = key_val.first <=> (*iter)->key();
-                if (comp == std::strong_ordering::equal) {
-                    (*iter)->key_val() = std::move(key_val);
-                } else if (comp == std::strong_ordering::less) {
-                    iter = &(*iter)->left_;
-                } else {
-                    iter = &(*iter)->right_;
-                }
+        // we walk through every unique pointer until it points to null, meaning we have reached a leaf node
+        // the `iter` is is a pointer to a std::unique_ptr, hence double de-referencing is required to get the underlying element
+        auto* iter = &root;
+        decltype(iter->get()) parent = nullptr;
+        while (*iter) {
+            auto comp = key_val.first <=> (*iter)->key();
+            if (comp == std::strong_ordering::equal) {
+                (*iter)->key_val() = std::move(key_val);
+                return;
+            } else if (comp == std::strong_ordering::less) {
+                parent = iter->get();
+                iter = &(*iter)->left_;
+            } else {
+                parent = iter->get();
+                iter = &(*iter)->right_;
             }
-            *iter = std::make_unique<node_type>(node_type{.key_val_ = std::forward<std::pair<K, V>&&>(key_val), .left_ = nullptr, .right_ = nullptr});
         }
+        ++ssize_;
+        *iter = std::make_unique<node_type>(
+            node_type{.left_ = nullptr, .right_ = nullptr, .parent_ = parent, .key_val_ = std::forward<std::pair<K, V>&&>(key_val)});
+    }
+    
+    void remove(key_type const& key) {
+        auto* node = find(root.get(), key);
+
+        if (!node) {
+            throw std::out_of_range{"Key doesn't exist, deleting non-existent keys are nonsense!"};
+        }
+
+        if (!node->left() && !node->right()) {
+            auto* parent = node->parent();
+            if (parent) {
+                // normal case when parent is just another node
+                if (parent->left() == node) {
+                    parent->left_.reset();
+                } else {
+                    parent->right_.reset();
+                }
+            } else {
+                // special case when node is root
+                root.reset();
+            }
+            --ssize_;
+            return;
+        } else if (!node->left()) {
+            // when the node only has a right sub tree
+            auto* parent = node->parent();
+            auto right_sub_tree = std::move(node->right_);
+            if (parent) {
+                right_sub_tree->parent() = parent;
+                if (parent->left() == node) {
+                    parent->left_ = std::move(right_sub_tree);
+                } else {
+                    parent->right_ = std::move(right_sub_tree);
+                }
+            } else {
+                // special case when node is root
+
+                right_sub_tree->parent() = root.get();
+                root = std::move(right_sub_tree);
+            }
+            --ssize_;
+            return;
+        } else if (!node->right()) {
+            // when the node only has a left sub tree
+            auto* parent = node->parent();
+            auto left_sub_tree = std::move(node->left_);
+
+            if (parent) {
+                left_sub_tree->parent() = parent;
+                if (parent->left() == node) {
+                    parent->left_ = std::move(left_sub_tree);
+                } else {
+                    parent->right_ = std::move(left_sub_tree);
+                }
+            } else {
+                // special case when node is root
+                left_sub_tree->parent() = root.get();
+                root = std::move(left_sub_tree);
+            }
+            --ssize_;
+            return;
+        }
+
+        // or we are in the most difficult case when the node has two subtrees
+
+        // the successor node should be moved into the place where `node` currently is
+        auto successor = pop_min(node->right());
+        auto* successor_parent = successor->parent();
+
+        // take over the two subtrees of `node`
+        auto left = std::move(node->left_);
+        auto right = std::move(node->right_);
+
+        auto* node_parent = node->parent();
+
+        if (node_parent) {
+            if (node_parent->left() == node) {
+                node_parent->left_ = std::move(successor);
+            } else {
+                node_parent->right_ = std::move(successor);
+            }
+
+            successor->parent() = node_parent;
+            successor->left_ = std::move(left);
+            if (successor->left_) {
+                successor->left()->parent() = successor.get();
+            }
+
+            successor->right_ = std::move(right);
+            if (successor->right_) {
+                successor->right()->parent() = successor.get();
+            }
+        } else {
+            successor->left_ = std::move(left);
+
+            if (successor->left_) {
+                successor->left()->parent() = successor.get();
+            }
+
+            successor->right_ = std::move(right);
+
+            if (successor->right_) {
+                successor->right()->parent() = successor.get();
+            }
+
+            successor->parent() = nullptr;
+            root = std::move(successor);
+        }
+        --ssize_;
+        return;
     }
 
-    // TODO: implement this!
-    void remove(K const& key) {}
+    [[nodiscard]] constexpr ssize_type size() const { return ssize_; }
 
-    [[nodiscard]] constexpr std::size_t size() const { return size(root); }
-
-    constexpr node_type const& min() const noexcept { return static_cast<key_type const&>(*min_impl()); }
-    constexpr node_type& min() noexcept { return *min_impl(); }
+    constexpr node_type const& min() const noexcept { return static_cast<key_type const&>(*min_impl(root.get())); }
+    constexpr node_type& min() noexcept { return *min_impl(root.get()); }
 
     constexpr node_type const& lower_bound(key_type const& key) const { return static_cast<node_type const&>(*floor_impl(root.get(), key)); }
     constexpr node_type& lower_bound(key_type const& key) { return *floor_impl(root.get(), key); }
@@ -115,19 +226,19 @@ private:
             if (node_iter->key() == key) {
                 return node_iter;
             } else if (key < node_iter->key()) {
-                node_iter = node_iter->left_.get();
+                node_iter = node_iter->left();
             } else if (key > node_iter->key()) {
-                node_iter = node_iter->right_.get();
+                node_iter = node_iter->right();
             }
         }
         return node_iter;
     }
 
-    constexpr node_type* min_impl() const noexcept {
-        auto* iter = root.get();
+    constexpr node_type* min_impl(node_type* node) const noexcept {
+        auto* iter = node;
         if (iter) {
-            while (iter->left_.get()) {
-                iter = iter->left_.get();
+            while (iter->left_) {
+                iter = iter->left();
             }
             return iter;
         }
@@ -144,7 +255,7 @@ private:
         if (comp == std::strong_ordering::equal) {
             return node;
         } else if (comp == std::strong_ordering::less) {
-            return floor_impl(node->left_.get(), key);
+            return floor_impl(node->left(), key);
         } else {
             // there might be an element in the right subtree that is greater than the key of `node` but smaller than `key`, we do not know if such element
             // exists until we search through all of them
@@ -180,15 +291,39 @@ private:
         }
     }
 
-    constexpr void delete_min() noexcept {
-        auto* iter = root.get();
+    constexpr std::unique_ptr<node_type> pop_min(node_type* node) noexcept {
+        auto* iter = node;
         while (iter->left_) {
-            iter = iter->left_.get();
+            iter = iter->left();
         }
-        iter->left_.release();
+
+        auto* parent = iter->parent();
+
+        bool const from_left = iter == parent->left();
+
+        auto min_node = [&] {
+            if (from_left) {
+                return std::move(parent->left_);
+            } else {
+                return std::move(parent->right_);
+            }
+        }();
+        auto right_sub_tree = std::move(min_node->right_);
+        if (right_sub_tree) {
+            right_sub_tree->parent() = parent;
+        }
+
+        if (from_left) {
+            parent->left_ = std::move(right_sub_tree);
+        } else {
+            parent->right_ = std::move(right_sub_tree);
+        }
+
+        return std::move(min_node);
     }
 
     std::unique_ptr<node_type> root = nullptr;
+    ssize_type ssize_ = 0;
 };
 }  // namespace algo
 #endif  // ALGO_LAND_MAP_H
