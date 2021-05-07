@@ -7,6 +7,7 @@
 #include <iostream>
 #include <limits>
 #include <random>
+#include <set>
 #include <unordered_set>
 
 TEST_CASE("map can construct as <int, int> pair", "[construct]") { algo::map<int, int> m; }
@@ -94,7 +95,7 @@ TEST_CASE("map::upper_bound returns the ceiling of key", "[upper_bound]") {
     REQUIRE(map.upper_bound(0).key() == 1);
 }
 
-TEST_CASE("map::remove removes the node with the matching key", "[remove]") {
+TEST_CASE("map::erase removes the node with the matching key", "[erase]") {
     algo::map<int, int> map;
 
     std::vector<std::pair<int, int>> vec;
@@ -115,6 +116,47 @@ TEST_CASE("map::remove removes the node with the matching key", "[remove]") {
     std::shuffle(vec.begin(), vec.end(), rand_engine);
 
     for (auto& i : vec) {
-        map.remove(i.first);
+        map.erase(i.first);
     }
+}
+
+TEST_CASE("map iterators is in non-increasing order", "[iterator]") {
+    algo::map<int, int> map;
+
+    std::vector<int> vec;
+
+    std::random_device seeder;
+    std::mt19937_64 rand_engine{seeder()};
+    std::uniform_int_distribution<int> distribution{-200, 400};
+
+    vec.resize(2000);
+    std::generate(vec.begin(), vec.end(), [&] { return distribution(rand_engine); });
+
+    std::unordered_set<int> s;
+
+    for (auto item : vec) {
+        s.insert(item);
+    }
+    vec.clear();
+    vec.insert(vec.begin(), s.begin(), s.end());
+
+    for (auto i : vec) {
+        map.insert({i, 0});
+    }
+
+    for (int i = 0; i < 600; ++i) {
+        map.insert({vec[i], i + 1});
+    }
+
+    std::vector<int> map_order;
+    for (auto it = map.begin(); it != map.end(); ++it) {
+        map_order.push_back((*it).first);
+    }
+    std::sort(vec.begin(), vec.end());
+    REQUIRE(map_order == vec);
+}
+
+TEST_CASE("map begin == end when emtpy", "[iterator]") {
+    algo::map<int, int> m;
+    REQUIRE(m.begin() == m.end());
 }

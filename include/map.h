@@ -12,51 +12,103 @@
 #endif
 namespace algo {
 
-namespace details {}
+namespace details {
+/**
+ * Internal node type definition
+ * @tparam T Key type
+ * @tparam U Value type
+ */
+template <typename T, typename U>
+struct node_t {
+    using node_type = node_t<T, U>;
+    using pair_type = std::pair<T, U>;
+
+    std::unique_ptr<node_type> left_;
+    std::unique_ptr<node_type> right_;
+    node_type* parent_;
+    pair_type key_val_;
+
+    [[nodiscard]] friend constexpr auto operator<=>(node_t<T, U> const& lhs, node_t<T, U> const& rhs) noexcept(noexcept(lhs.key <=> rhs.key)) {
+        return lhs.key <=> rhs.key;
+    }
+    [[nodiscard]] constexpr auto& key() const noexcept { return key_val_.first; }
+    [[nodiscard]] constexpr auto& value() noexcept { return key_val_.second; }
+
+    [[nodiscard]] constexpr node_type* left() const noexcept { return left_.get(); }
+    [[nodiscard]] constexpr node_type* right() const noexcept { return right_.get(); }
+    [[nodiscard]] constexpr node_type*& parent() noexcept { return parent_; }
+    [[nodiscard]] constexpr auto& key_val() noexcept { return key_val_; }
+    [[nodiscard]] constexpr auto const& key_val() const noexcept { return key_val_; }
+};
+}  // namespace details
+
+using namespace details;
+
+template <typename K, typename V>
+struct map_iterator {
+public:
+    using node_type = node_t<K, V>;
+    using self = map_iterator<K, V>;
+
+    map_iterator& operator++() {
+        if (current_->right()) {
+            // when a node has right tree, we go right then visit the left most node. Since we start from the left most node, we are guaranteed that the left
+            // tree has been visited, assuming it has one
+            current_ = current_->right();
+            while (current_->left()) {
+                current_ = current_->left();
+            }
+
+        } else {
+            // when we are at a leaf node, things are more complicated.
+            // regardless of what, we go up a node
+            auto* parent = current_->parent_;
+
+            // since at any given point, the left sub tree is guaranteed to be visited before. If we come from a right node, we need to continue to go up
+
+            while (parent && current_ == parent->right()) {
+                current_ = parent;
+                parent = parent->parent();
+            }
+
+            // special case when we are the last node, this will set the current to null and reaching the `end` iterator
+            if (current_->parent_ == nullptr) {
+                current_ = nullptr;
+                return *this;
+            }
+
+            current_ = parent;
+        }
+        return *this;
+    }
+
+    typename node_type::pair_type& operator*() const { return current_->key_val_; }
+
+    map_iterator operator++(int dummy) = delete;
+
+    friend bool operator==(self const& lhs, self const& rhs) { return lhs.current_ == rhs.current_; }
+
+    map_iterator(node_type* node) noexcept : current_{node} {}
+
+private:
+    node_type* current_;
+};
 
 template <typename K, typename V>
 requires std::totally_ordered<K>
 class map {
-private:
-    /**
-     * Internal node type definition
-     * @tparam T Key type
-     * @tparam U Value type
-     */
-    template <typename T, typename U>
-    struct node_t {
-        using node_type = node_t<T, U>;
-        using pair_type = std::pair<T, U>;
-
-        std::unique_ptr<node_type> left_;
-        std::unique_ptr<node_type> right_;
-        node_type* parent_;
-        pair_type key_val_;
-
-        [[nodiscard]] friend constexpr auto operator<=>(node_t<T, U> const& lhs, node_t<T, U> const& rhs) noexcept(noexcept(lhs.key <=> rhs.key)) {
-            return lhs.key <=> rhs.key;
-        }
-        [[nodiscard]] constexpr auto& key() const noexcept { return key_val_.first; }
-        [[nodiscard]] constexpr auto& value() noexcept { return key_val_.second; }
-
-        [[nodiscard]] constexpr node_type* left() const noexcept { return left_.get(); }
-        [[nodiscard]] constexpr node_type* right() const noexcept { return right_.get(); }
-        [[nodiscard]] constexpr node_type*& parent() noexcept { return parent_; }
-        [[nodiscard]] constexpr auto& key_val() noexcept { return key_val_; }
-        [[nodiscard]] constexpr auto const& key_val() const noexcept { return key_val_; }
-    };
-
 public:
     using node_type = typename node_t<K, V>::node_type;
     using key_type = typename node_type::pair_type::first_type;
     using value_type = typename node_type::pair_type::second_type;
     using ssize_type = long long;  // this is a deliberate decision to to signed integers for size, sizes are never negative and hence should be unsigned is a
                                    // bad argument
+    using iterator_type = map_iterator<key_type, value_type>;
 
     map() noexcept = default;
 
     [[nodiscard]] constexpr value_type const& at(K const& key) const {
-        auto* value = find(root, key);
+        auto* value = find(root_, key);
         if (!value) {
             throw std::out_of_range{"such key does not exist!"};
         } else {
@@ -65,7 +117,7 @@ public:
     }
 
     [[nodiscard]] constexpr value_type& at(K const& key) {
-        auto* target = find(root.get(), key);
+        auto* target = find(root_.get(), key);
         if (!target) {
             throw std::out_of_range{"such key does not exist!"};
         }
@@ -75,7 +127,7 @@ public:
     void insert(std::pair<K, V>&& key_val) {
         // we walk through every unique pointer until it points to null, meaning we have reached a leaf node
         // the `iter` is is a pointer to a std::unique_ptr, hence double de-referencing is required to get the underlying element
-        auto* iter = &root;
+        auto* iter = &root_;
         decltype(iter->get()) parent = nullptr;
         while (*iter) {
             auto comp = key_val.first <=> (*iter)->key();
@@ -95,8 +147,8 @@ public:
             node_type{.left_ = nullptr, .right_ = nullptr, .parent_ = parent, .key_val_ = std::forward<std::pair<K, V>&&>(key_val)});
     }
 
-    void remove(key_type const& key) {
-        auto* node = find(root.get(), key);
+    void erase(key_type const& key) {
+        auto* node = find(root_.get(), key);
 
         if (!node) {
             throw std::out_of_range{"Key doesn't exist, deleting non-existent keys are nonsense!"};
@@ -114,7 +166,7 @@ public:
                 }
             } else {
                 // special case when node is root
-                root.reset();
+                root_.reset();
             }
             --ssize_;
             return;
@@ -131,8 +183,8 @@ public:
                 }
             } else {
                 // special case when node is root
-                root = std::move(right_sub_tree);
-                root->parent() = nullptr;
+                root_ = std::move(right_sub_tree);
+                root_->parent() = nullptr;
             }
             --ssize_;
             return;
@@ -150,8 +202,8 @@ public:
                 }
             } else {
                 // special case when node is root
-                root = std::move(left_sub_tree);
-                root->parent() = nullptr;
+                root_ = std::move(left_sub_tree);
+                root_->parent() = nullptr;
             }
             --ssize_;
             return;
@@ -202,7 +254,7 @@ public:
             }
 
             successor->parent() = nullptr;
-            root = std::move(successor);
+            root_ = std::move(successor);
         }
         --ssize_;
         return;
@@ -210,35 +262,21 @@ public:
 
     [[nodiscard]] constexpr ssize_type size() const { return ssize_; }
 
-    constexpr node_type const& min() const noexcept { return static_cast<key_type const&>(*min_impl(root.get())); }
-    constexpr node_type& min() noexcept { return *min_impl(root.get()); }
-
-    constexpr node_type const& lower_bound(key_type const& key) const { return static_cast<node_type const&>(*floor_impl(root.get(), key)); }
-    constexpr node_type& lower_bound(key_type const& key) { return *floor_impl(root.get(), key); }
-
-    constexpr node_type const& upper_bound(key_type const& key) const { return static_cast<node_type const&>(*ceiling_impl(root.get(), key)); }
-    constexpr node_type& upper_bound(key_type const& key) { return *ceiling_impl(root.get(), key); }
-
-#ifndef NDEBUG
-    void printInorder(std::string_view preamble) const noexcept {
-        std::cout << "\n\n**********************\n" << std::flush;
-        std::cout << preamble << std::flush;
-        printInorder(root.get());
-        std::cout << "**********************\n" << std::flush;
+    constexpr iterator_type begin() const noexcept {
+        auto* min = min_impl(root_.get());
+        return iterator_type{min};
     }
 
-    void printInorder(node_type* node) const noexcept {
-        if (!node) return;
-        /* first recur on left child */
-        printInorder(node->left());
+    constexpr iterator_type end() const noexcept { return iterator_type{nullptr}; }
 
-        /* then print the data of node */
-        std::cout << "key = " << node->key() << " value = " << node->value() << '\n' << std::flush;
+    constexpr node_type const& min() const noexcept { return static_cast<key_type const&>(*min_impl(root_.get())); }
+    constexpr node_type& min() noexcept { return *min_impl(root_.get()); }
 
-        /* now recur on right child */
-        printInorder(node->right());
-    }
-#endif
+    constexpr node_type const& lower_bound(key_type const& key) const { return static_cast<node_type const&>(*floor_impl(root_.get(), key)); }
+    constexpr node_type& lower_bound(key_type const& key) { return *floor_impl(root_.get(), key); }
+
+    constexpr node_type const& upper_bound(key_type const& key) const { return static_cast<node_type const&>(*ceiling_impl(root_.get(), key)); }
+    constexpr node_type& upper_bound(key_type const& key) { return *ceiling_impl(root_.get(), key); }
 
 private:
     template <typename T, typename U>
@@ -351,7 +389,7 @@ private:
         return std::move(min_node);
     }
 
-    std::unique_ptr<node_type> root = nullptr;
+    std::unique_ptr<node_type> root_ = nullptr;
     ssize_type ssize_ = 0;
 };
 }  // namespace algo
