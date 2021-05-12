@@ -22,7 +22,7 @@ set(common_features
 add_library(algo_and_data
         include/sort.h
         include/priority_queue.h
-        include/map.h include/utils.h include/search.h)
+        include/map.h include/utils.h include/search.h include/balanced_map.h)
 set_target_properties(algo_and_data PROPERTIES LINKER_LANGUAGE CXX)
 target_compile_options(algo_and_data PRIVATE
         ${common_warnings} ${common_features})
@@ -37,7 +37,8 @@ target_link_libraries(Catch2Main PUBLIC Catch2::Catch2)
 
 set(tests
         test/map_test.cpp
-        test/priority_queue_test.cpp)
+        test/priority_queue_test.cpp
+        test/rb_map_test.cpp)
 
 foreach (test ${tests})
     # hack of hacks, jank of janks solution to turn /test/name.cpp to name.cpp
